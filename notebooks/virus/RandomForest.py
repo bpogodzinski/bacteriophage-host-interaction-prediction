@@ -49,6 +49,7 @@ class RandomForest:
                   # Yielding values
                   Tuple[str, pd.DataFrame, pd.DataFrame], \
                   None, None]], \
+              exclude_features=None, \
               **kwargs) -> List[Tuple[str, RandomForestClassifier]]:
         """Train classifiers
 
@@ -63,6 +64,8 @@ class RandomForest:
         for test_family, train_df, _ in sampling_function(df, virus_groups, host_json):
             y_train = train_df.reset_index().loc[:, 'interaction']
             X_train = train_df.reset_index().iloc[:, 2:-1]
+            if exclude_features:
+                X_train = X_train.loc[:, ~X_train.columns.isin(exclude_features)]
             rf = RandomForestClassifier(**kwargs)
             rf.fit(X_train, y_train)
             results_models.append((test_family, rf))
@@ -85,7 +88,8 @@ class RandomForest:
                             models_data: List[Tuple[str, RandomForestClassifier]],
                             virus_groups: Dict[str, List[str]],
                             df: pd.DataFrame,
-                            filename: str) -> None:
+                            filename: str,
+                            exclude_features=None) -> None:
         """Save virus, host and prediction of interaction.
 
         Args:
@@ -99,6 +103,8 @@ class RandomForest:
             virus_to_test = virus_groups[group_name]
             host_to_test_df = df.loc[virus_to_test]
             data_to_predict = host_to_test_df.reset_index().iloc[:, 2:-1]
+            if exclude_features:
+                data_to_predict = data_to_predict.loc[:, ~data_to_predict.columns.isin(exclude_features)]
             results_interaction = model.predict_proba(data_to_predict)
             csv_data.extend([
                             {'virus': virus,
@@ -141,7 +147,7 @@ class RandomForest:
         """
         return pd.read_csv(self.PROJECT_DIR / filename, header=0, index_col=[0, 1]).sort_values(by='prediction', ascending=False)
 
-    def get_feature_importances(self, classifiers: List[RandomForestClassifier]) -> pd.DataFrame:
+    def get_feature_importances(self, classifiers: List[RandomForestClassifier], exclude_features=None) -> pd.DataFrame:
         """Get feature importances data.
 
         Args:
@@ -151,6 +157,8 @@ class RandomForest:
             pd.DataFrame: features vs importance, percent, standard deviation
         """
         columns = self.df.columns[:-1]
+        if exclude_features:
+            columns = columns[~columns.isin(exclude_features)]
         importances_list = []
         for model in classifiers:
             importances = model.feature_importances_
@@ -173,6 +181,7 @@ class RandomForest:
     def plot_feature_importances(self,
                                  classifiers: List[RandomForestClassifier],
                                  size: Tuple[int, int] = (25, 10),
+                                 exclude_features=None,
                                  **kwargs) -> p9.ggplot:
         """Plot feature importances from list of clasifiers having
         `classifier.feature_importances_` field.
@@ -185,7 +194,7 @@ class RandomForest:
         Returns:
             ggplot: plot object
         """
-        df = self.get_feature_importances(classifiers)
+        df = self.get_feature_importances(classifiers, exclude_features)
         mean = df['importance'].mean()
         return p9.ggplot(data=df, mapping=p9.aes(x=df.index, y='importance', fill='percent')) \
             + p9.geom_bar(stat='identity') \
