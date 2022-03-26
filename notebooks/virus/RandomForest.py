@@ -203,7 +203,7 @@ class RandomForest:
             + p9.labs(title='Feature importance', y='Mean importance (the higher, the better)', fill='Deviation from mean (%)') \
             + p9.labs(**kwargs) \
             + p9.scale_fill_gradient2(low='red', mid='darkgrey', high='darkgreen') \
-            + p9.scale_y_continuous(breaks=np.arange(0, 0.7, 0.1), limits=[0, 0.6]) \
+            + p9.scale_y_continuous(breaks=np.arange(0, 0.9, 0.1), limits=[0, 0.8]) \
             + p9.theme_seaborn() \
             + p9.theme(figure_size=size,
                        panel_grid=p9.element_line(color='darkgrey'),
@@ -330,9 +330,7 @@ class RandomForest:
         
         # dodaj geom step
         return p9.ggplot(data=df) \
-                + p9.geom_point(p9.aes(x='recall', y='precision'), size=0.4) \
-                + p9.geom_point(p9.aes(x = best_recall, y = best_precision), color = 'red', size = 2) \
-                + p9.geom_line(p9.aes(x = 'recall', y = 'precision')) \
+                + p9.geom_step(p9.aes(x = 'recall', y = 'precision'), direction='vh') \
                 + p9.geom_text(p9.aes(x = best_recall, y = best_precision),
                                 label = f'Optimal threshold {best_threshold}',
                                 nudge_x = 0.18,
@@ -359,10 +357,9 @@ class RandomForest:
     def plot_roc_curve(self, y_data, y_predictions, size=(12,10), **kwargs):
         FPR, TPR, _ = metrics.roc_curve(y_data, y_predictions)
         df = pd.DataFrame(data={'FPR': FPR, 'TPR': TPR})
-        df['red_line'] = np.arange(0,1,1/len(FPR))
+        df['red_line'] = np.linspace(0,1,len(FPR))
         auc = round(metrics.auc(FPR, TPR), ndigits=4)
         return p9.ggplot(data=df) \
-            + p9.geom_point(p9.aes(y='TPR', x='FPR'), size=0.8) \
             + p9.geom_line(p9.aes(y='TPR', x='FPR'), size=0.8) \
             + p9.geom_line(p9.aes(x='red_line', y='red_line'), color='red', linetype='dashed', size=0.7, alpha=0.4) \
             + p9.scale_x_continuous(breaks=np.arange(0,1.1,0.1)) \
